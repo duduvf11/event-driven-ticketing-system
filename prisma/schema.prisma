@@ -1,0 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Usuários do Sistema
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("users")
+}
+
+// 2. Eventos (Shows, Conferências, Torneios)
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  location    String
+  eventDate   DateTime @map("event_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  ticketTiers TicketTier[]
+
+  @@map("events")
+}
+
+// 3. Lotes / Categorias de Ingressos (VIP, Pista, Camarote)
+model TicketTier {
+  id          String   @id @default(uuid())
+  eventId     String   @map("event_id")
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  totalQty    Int      @map("total_qty")
+  reservedQty Int      @default(0) @map("reserved_qty")
+  soldQty     Int      @default(0) @map("sold_qty")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("ticket_tiers")
+}
+
+// 4. Status do Pedido
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+// 5. Pedidos de Compra
+model Order {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  status         OrderStatus @default(PENDING)
+  totalAmount    Decimal     @map("total_amount") @db.Decimal(10, 2)
+  idempotencyKey String?     @unique @map("idempotency_key")
+  expiresAt      DateTime?   @map("expires_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+// 6. Itens do Pedido (Relação Pedido x Lote)
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String   @map("order_id")
+  ticketTierId String   @map("ticket_tier_id")
+  quantity     Int
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTier TicketTier @relation(fields: [ticketTierId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
