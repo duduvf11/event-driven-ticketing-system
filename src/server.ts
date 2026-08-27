@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { redis } from './config/redis';
 import { prisma} from './config/database';
+import { createReservationHandler } from './controllers/reservation.controller';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -26,6 +27,9 @@ app.get('/health', async (req, res) => {
     });
   }
 });
+
+
+app.post('/reservations', createReservationHandler)
 
 app.listen(port, () => {
   console.log(`Servidor HTTP rodando em: http://localhost:${port}`);

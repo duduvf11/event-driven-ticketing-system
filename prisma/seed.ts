@@ -20,7 +20,7 @@ async function main() {
     data: {
       title: 'Festival Medieval de Rock 2026',
       description: 'O maior torneio musical dos reinos esquecidos.',
-      location: 'Arena Central de Araruama',
+      location: 'Arena Central',
       eventDate: new Date('2026-11-20T20:00:00Z'),
     },
   });

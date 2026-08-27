@@ -7,7 +7,7 @@ export interface CreateOrderDTO {
     quantity: number,
     unitPrice: number,
     totalAmount: number,
-    idempotencyKey?: string,
+    idempotencyKey?: string | undefined,
     expiresAt: Date,
 }
 
