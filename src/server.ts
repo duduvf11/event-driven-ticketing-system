@@ -5,6 +5,7 @@ import { prisma } from './config/database';
 import { rabbitMQ } from './config/rabbitmq';
 import { createReservationHandler } from './controllers/reservation.controller';
 import { setupMessagingTopology } from './messaging/setup';
+import { startReservationExpirationConsumer } from './messaging/consumers/reservation-expiration.consumer';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -37,6 +38,7 @@ async function bootstrap() {
   try {
     await rabbitMQ.connect();
     await setupMessagingTopology();
+    await startReservationExpirationConsumer();
 
     app.listen(port, () => {
       console.log(`Servidor HTTP rodando em: http://localhost:${port}`);
