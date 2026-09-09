@@ -4,6 +4,7 @@ import { redis } from './config/redis';
 import { prisma } from './config/database';
 import { rabbitMQ } from './config/rabbitmq';
 import { createReservationHandler } from './controllers/reservation.controller';
+import { PaymentController } from './controllers/payment.controller';
 import { setupMessagingTopology } from './messaging/setup';
 import { startReservationExpirationConsumer } from './messaging/consumers/reservation-expiration.consumer';
 
@@ -11,6 +12,8 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+
+const paymentController = new PaymentController();
 
 app.get('/health', async (req, res) => {
   try {
@@ -33,6 +36,7 @@ app.get('/health', async (req, res) => {
 });
 
 app.post('/reservations', createReservationHandler);
+app.post('/orders/:id/pay', paymentController.pay)
 
 async function bootstrap() {
   try {
