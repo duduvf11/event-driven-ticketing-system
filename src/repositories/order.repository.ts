@@ -23,14 +23,14 @@ export class OrderRepository {
         const client = tx || prisma;
         return client.order.findUnique({
             where: { idempotencyKey: key },
-            include: { items: true},
+            include: { items: true },
         });
     }
 
     /*
      * Cria o pedido e o item associado dentro de uma transação
      */
-    async createPendingOrder(data: CreateOrderDTO, tx?: Prisma.TransactionClient){
+    async createPendingOrder(data: CreateOrderDTO, tx?: Prisma.TransactionClient) {
         const client = tx || prisma;
         return client.order.create({
             data: {
@@ -39,7 +39,7 @@ export class OrderRepository {
                 status: OrderStatus.PENDING,
                 idempotencyKey: data.idempotencyKey ?? null,
                 expiresAt: data.expiresAt,
-                items : {
+                items: {
                     create: {
                         ticketTierId: data.ticketTierId,
                         quantity: data.quantity,
@@ -65,6 +65,19 @@ export class OrderRepository {
         return client.order.update({
             where: { id: orderId },
             data: { status },
+        });
+    }
+
+    /*
+     * Permite a leitura dos itens dentro ou fora de uma transação 
+     */
+    async findByIdWithItems(id: string, tx?: Prisma.TransactionClient) {
+        const client = tx || prisma;
+        return client.order.findUnique({
+            where: { id },
+            include: {
+                items: true,
+            },
         });
     }
 }

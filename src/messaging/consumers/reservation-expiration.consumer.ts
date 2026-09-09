@@ -3,13 +3,13 @@ import { prisma } from "../../config/database"
 import { QUEUES, ReservationExpirationPayLoad } from "../constants";
 
 export async function startReservationExpirationConsumer(): Promise<void> {
-    const channel = rabbitMQ.getChannel();
+    const channel = await rabbitMQ.getChannel();
 
-    (await channel).prefetch(1)
+    await channel.prefetch(1);
 
     console.log(`Worker escutando mensagens na fila: [${QUEUES.RESERVATION_EXPIRATION}]`);
 
-    (await channel).consume(QUEUES.RESERVATION_EXPIRATION, async (msg) => {
+    await channel.consume(QUEUES.RESERVATION_EXPIRATION, async (msg) => {
         if (!msg) return;
 
         try {
@@ -29,7 +29,7 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                 }
 
                 if (order.status !== 'PENDING') {
-                    console.log(`[DLX Worker] Ordem ${orderId} já está como [${order.status}]. Nenhuma ação de estorno necessária.`)
+                    console.log(`[DLX Worker] Ordem ${orderId} já está como [${order.status}]. Nenhuma ação de estorno necessária.`);
                     return;
                 }
 
@@ -47,11 +47,13 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                     },
                 });
 
-                console.log(`[DLX Worker] Ordem ${orderId} marcada como EXPIRED. ${quantity} ingresso(s) devolvido(s) ao estoque!`)
+                console.log(`[DLX Worker] Ordem ${orderId} marcada como EXPIRED. ${quantity} ingresso(s) devolvido(s) ao estoque!`);
             });
+
+            channel.ack(msg);
         } catch (error) {
             console.error('[DLX Worker] Erro ao processar reserva:', error);
-            (await channel).nack(msg, false, true);
+            channel.nack(msg, false, true);
         }
     });
 }
