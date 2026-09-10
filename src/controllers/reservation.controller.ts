@@ -5,7 +5,8 @@ const reservationService = new ReservationService();
 
 export async function createReservationHandler(req: Request, res: Response) {
   try {
-    const { userId, ticketTierId, quantity } = req.body;
+    const ticketTierId = req.body.ticketTierId || req.body.tierId;
+    const { userId, quantity } = req.body;
     const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
 
     if (!userId || !ticketTierId || !quantity || quantity <= 0) {

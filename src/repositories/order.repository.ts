@@ -34,7 +34,16 @@ export class OrderRepository {
         const client = tx || prisma;
         return client.order.create({
             data: {
-                userId: data.userId,
+                user: {
+                    connectOrCreate: {
+                        where: { id: data.userId },
+                        create: {
+                            id: data.userId,
+                            name: `User ${data.userId}`,
+                            email: `${data.userId}@example.com`,
+                        },
+                    },
+                },
                 totalAmount: data.totalAmount,
                 status: OrderStatus.PENDING,
                 idempotencyKey: data.idempotencyKey ?? null,

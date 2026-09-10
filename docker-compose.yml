@@ -35,6 +35,17 @@ services:
     volumes:
       - "rabbitmq_data:/var/lib/rabbitmq"
 
+  k6:
+    image: grafana/k6:latest
+    container_name: ticketing_k6
+    network_mode: host
+    volumes:
+      - "./tests/load:/scripts"
+    environment:
+      - API_URL=${API_URL:-http://localhost:3000}
+      - TIER_ID=${LOAD_TEST_TIER_ID}
+    profiles: ["tools"]
+
 volumes:
   postgres_data:
   redis_data:
