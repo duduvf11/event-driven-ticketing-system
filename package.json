@@ -11,6 +11,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:load": "docker compose run --rm k6 run /scripts/reservation-concurrency.js",
     "postinstall": "prisma skills sync || exit 0"
   },
   "repository": {
