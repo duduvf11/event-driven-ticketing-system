@@ -7,6 +7,7 @@ import { createReservationHandler } from './controllers/reservation.controller';
 import { PaymentController } from './controllers/payment.controller';
 import { setupMessagingTopology } from './messaging/setup';
 import { startReservationExpirationConsumer } from './messaging/consumers/reservation-expiration.consumer';
+import { CancellationController } from './controllers/cancellation.controller';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -14,6 +15,7 @@ const port = Number(process.env.PORT) || 3000;
 app.use(express.json());
 
 const paymentController = new PaymentController();
+const cancellationController = new CancellationController();
 
 app.get('/health', async (req, res) => {
   try {
@@ -36,7 +38,8 @@ app.get('/health', async (req, res) => {
 });
 
 app.post('/reservations', createReservationHandler);
-app.post('/orders/:id/pay', paymentController.pay)
+app.post('/orders/:id/pay', paymentController.pay);
+app.post('/orders/:id/cancel', cancellationController.cancel)
 
 async function bootstrap() {
   try {
