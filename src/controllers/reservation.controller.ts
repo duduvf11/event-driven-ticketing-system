@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { ReservationService } from '../services/reservation.service';
 
 const reservationService = new ReservationService();
@@ -6,11 +6,16 @@ const reservationService = new ReservationService();
 export async function createReservationHandler(req: Request, res: Response) {
   try {
     const ticketTierId = req.body.ticketTierId || req.body.tierId;
-    const { userId, quantity } = req.body;
+    const { quantity } = req.body;
+    const userId = req.user?.id;
     const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
 
-    if (!userId || !ticketTierId || !quantity || quantity <= 0) {
-      return res.status(400).json({ error: 'Parâmetros inválidos para a reserva.' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: User authentication required.' })
+    }
+
+    if (!ticketTierId || !quantity || Number(quantity) <= 0) {
+      return res.status(400).json({ error: 'Invalid parameters for reservation. ticketTierId and a positive quantity are required.' });
     }
 
     const result = await reservationService.execute({

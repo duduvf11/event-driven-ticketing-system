@@ -1,21 +1,20 @@
-import { prisma } from '../config/database'
-import { Order, OrderStatus, Prisma } from '@prisma/client'
+import { prisma } from '../config/database';
+import { Order, OrderStatus, Prisma } from '@prisma/client';
 
 export interface CreateOrderDTO {
-    userId: string,
-    ticketTierId: string,
-    quantity: number,
-    unitPrice: number,
-    totalAmount: number,
-    idempotencyKey?: string | undefined,
-    expiresAt: Date,
+    userId: string;
+    ticketTierId: string;
+    quantity: number;
+    unitPrice: number;
+    totalAmount: number;
+    idempotencyKey?: string | undefined;
+    expiresAt: Date;
 }
 
 export class OrderRepository {
-    /*
+    /**
      * Busca pedido por chave de idempotência para evitar compras duplicadas
      */
-
     async findByIdempotencyKey(
         key: string,
         tx?: Prisma.TransactionClient
@@ -27,7 +26,7 @@ export class OrderRepository {
         });
     }
 
-    /*
+    /**
      * Cria o pedido e o item associado dentro de uma transação
      */
     async createPendingOrder(data: CreateOrderDTO, tx?: Prisma.TransactionClient) {
@@ -35,13 +34,8 @@ export class OrderRepository {
         return client.order.create({
             data: {
                 user: {
-                    connectOrCreate: {
-                        where: { id: data.userId },
-                        create: {
-                            id: data.userId,
-                            name: `User ${data.userId}`,
-                            email: `${data.userId}@example.com`,
-                        },
+                    connect: {
+                        id: data.userId,
                     },
                 },
                 totalAmount: data.totalAmount,
@@ -62,7 +56,7 @@ export class OrderRepository {
         });
     }
 
-    /*
+    /**
      * Atualiza o status de um pedido existente
      */
     async updateStatus(
@@ -77,7 +71,7 @@ export class OrderRepository {
         });
     }
 
-    /*
+    /**
      * Permite a leitura dos itens dentro ou fora de uma transação 
      */
     async findByIdWithItems(id: string, tx?: Prisma.TransactionClient) {
