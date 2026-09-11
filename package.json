@@ -28,8 +28,10 @@
   "homepage": "https://github.com/duduvf11/event-driven-ticketing-system#readme",
   "devDependencies": {
     "@types/amqplib": "^0.10.8",
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
     "@types/ioredis": "^4.28.10",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.3.0",
     "prisma": "^6.19.3",
     "tsx": "^4.23.12",
@@ -38,9 +40,13 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "amqplib": "^2.0.1",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "ioredis": "^6.0.0"
+    "express-rate-limit": "^8.7.0",
+    "ioredis": "^6.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "rate-limit-redis": "^6.0.1"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.2"
@@ -51,7 +57,8 @@
     "workerd@1.20260704.1": true,
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
-    "prisma@6.19.3": true
+    "prisma@6.19.3": true,
+    "bcrypt@6.0.0": true
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

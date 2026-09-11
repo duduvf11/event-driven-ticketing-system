@@ -13,7 +13,7 @@ export class CancellationController {
             const orderId = req.params.id;
 
             if (!orderId || typeof orderId !== 'string') {
-                return res.status(400).json({ error: 'O ID do pedido é obrigátorio e deve ser uma string válida.' })
+                return res.status(400).json({ error: 'O ID do pedido é obrigatório e deve ser uma string válida.' })
             }
 
             const result = await this.cancellationService.execute({ orderId });
