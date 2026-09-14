@@ -13,6 +13,12 @@ export class PaymentController {
             const { id: orderId } = req.params;
             const userId = req.user?.id;
 
+            const  idempotencyKey = (
+                req.headers['idempotency-key'] ||
+                req.headers['x-idempotency-key'] ||
+                req.body?.idempotencyKey
+            ) as string | undefined;
+
             if (!userId) {
                 return res.status(401).json({ error: 'Unauthorized: User authentication required.' });
             }
@@ -22,7 +28,7 @@ export class PaymentController {
             }
 
 
-            const result = await this.paymentService.execute({ orderId, userId });
+            const result = await this.paymentService.execute({ orderId, userId, idempotencyKey });
             
             return res.status(200).json({
                 message: 'Pagamento confirmado com sucesso!',

@@ -6,10 +6,22 @@ export async function setupMessagingTopology(): Promise<void> {
 
     await channel.assertExchange(EXCHANGES.RESERVATIONS, 'direct', { durable: true });
     await channel.assertExchange(EXCHANGES.DLX, 'direct', { durable: true });
+    await channel.assertExchange(EXCHANGES.RESERVATIONS_DLX, 'direct', { durable: true });
     await channel.assertExchange(EXCHANGES.ORDERS, 'topic', { durable: true });
 
-    await channel.assertQueue(QUEUES.RESERVATION_EXPIRATION, { durable: true });
+    await channel.assertQueue(QUEUES.RESERVATION_DLQ, { durable: true });
+    await channel.bindQueue(
+        QUEUES.RESERVATION_DLQ,
+        EXCHANGES.RESERVATIONS_DLX,
+        ROUTING_KEYS.EXPIRATION_DLQ
+    );
 
+    await channel.assertQueue(QUEUES.RESERVATION_EXPIRATION, { 
+        durable: true, 
+        deadLetterExchange: EXCHANGES.RESERVATIONS_DLX, 
+        deadLetterRoutingKey: ROUTING_KEYS.EXPIRATION_DLQ, 
+    });
+    
     await channel.bindQueue(
         QUEUES.RESERVATION_EXPIRATION,
         EXCHANGES.DLX,
