@@ -1,9 +1,11 @@
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "../config/database";
 import { OrderRepository } from "../repositories/order.repository";
+import { publishOrderPaid } from "../messaging/publishers/order-paid.publisher";
 
 export interface ProcessPaymentInput {
     orderId: string;
+    userId: string;
 }
 
 export class PaymentService {
@@ -13,28 +15,34 @@ export class PaymentService {
         this.orderRepo = new OrderRepository();
     }
 
-    async execute({ orderId }: ProcessPaymentInput) {
-        return prisma.$transaction(async (tx) => {
+    async execute({ orderId, userId }: ProcessPaymentInput) {
+        const updatedOrder = await prisma.$transaction(async (tx) => {
             const order = await this.orderRepo.findByIdWithItems(orderId, tx);
 
             if (!order) {
-                throw new Error('Pedido não encontrado.');
+                const error: any = new Error('Pedido não encontrado.');
+                error.statusCode = 404;
+                throw error;
             }
 
-            if (order.status === 'CONFIRMED') {
-                return { order, alreadyPaid: true }
+            if (order.userId !== userId) {
+                const error: any = new Error('Acesso negado. Este pedido não pertence a você.');
+                error.statusCode = 403;
+                throw error;
             }
 
-            if (order.status === 'EXPIRED') {
-                throw new Error('Este pedido expirou e não pode mais ser pago.')
+            if (order.status === OrderStatus.CONFIRMED || (order.status as string) === 'PAID') {
+                const error: any = new Error('Order is already paid');
+                error.statusCode = 400;
+                throw error;
             }
 
-            if (order.status === 'CANCELLED') {
-                throw new Error('Este pedido foi cancelado.')
-            }
+            const isExpiredByTime = order.expiresAt && new Date() > order.expiresAt;
 
-            if (order.expiresAt && new Date() > order.expiresAt) {
-                throw new Error('O tempo limite para pagamento deste pedido expirou.')
+            if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.EXPIRED || isExpiredByTime) {
+                const error: any = new Error('Order is no longer eligible for payment');
+                error.statusCode = 400;
+                throw error;
             }
 
             for (const item of order.items) {
@@ -46,7 +54,7 @@ export class PaymentService {
                         },
                         soldQty: {
                             increment: item.quantity,
-                        }
+                        },
                     },
                 });
             }
@@ -61,7 +69,21 @@ export class PaymentService {
                 },
             });
 
-            return { order: updatedOrder, alreadyPaid: false };
+            return updatedOrder
         });
+
+        await publishOrderPaid({
+            orderId: updatedOrder.id,
+            userId: updatedOrder.userId,
+            totalAmount: Number(updatedOrder.totalAmount),
+            items: updatedOrder.items.map(item => ({
+                ticketTierId: item.ticketTierId,
+                quantity: item.quantity,
+                unitPrice: Number(item.unitPrice),
+            })),
+            paidAt: new Date().toISOString(),
+        });
+
+        return { order: updatedOrder };
     }
 }
