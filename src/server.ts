@@ -43,8 +43,8 @@ app.get('/health', async (req, res) => {
 app.use('/auth', authRateLimiter, authRouter);
 
 app.post('/reservations', reservationRateLimiter, authMiddleware, createReservationHandler);
-app.post('/orders/:id/pay', paymentController.pay);
-app.post('/orders/:id/cancel', cancellationController.cancel);
+app.post('/orders/:id/pay', authMiddleware, paymentController.pay);
+app.post('/orders/:id/cancel', authMiddleware, cancellationController.cancel);
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const statusCode = err.statusCode || 500;
