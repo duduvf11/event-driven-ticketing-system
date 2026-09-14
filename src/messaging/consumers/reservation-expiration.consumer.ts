@@ -1,5 +1,5 @@
 import { rabbitMQ } from "../../config/rabbitmq";
-import { prisma } from "../../config/database"
+import { prisma } from "../../config/database";
 import { QUEUES, ReservationExpirationPayLoad } from "../constants";
 
 export async function startReservationExpirationConsumer(): Promise<void> {
@@ -12,8 +12,25 @@ export async function startReservationExpirationConsumer(): Promise<void> {
     await channel.consume(QUEUES.RESERVATION_EXPIRATION, async (msg) => {
         if (!msg) return;
 
+        let payload: ReservationExpirationPayLoad;
+
+        // 1. Barreira contra Poison Pills (JSON corrompido ou payload incompleto)
         try {
-            const payload: ReservationExpirationPayLoad = JSON.parse(msg.content.toString());
+            payload = JSON.parse(msg.content.toString());
+
+            if (!payload?.orderId || !payload?.ticketTierId || typeof payload?.quantity !== 'number') {
+                console.error('[DLX Worker] Poison Pill detectada (payload incompleto). Enviando para DLQ:', msg.content.toString());
+                channel.nack(msg, false, false);
+                return;
+            }
+        } catch (parseError) {
+            console.error('[DLX Worker] Poison Pill detectada (JSON corrompido). Enviando para DLQ:', parseError);
+            channel.nack(msg, false, false);
+            return;
+        }
+
+        // 2. Processamento da Regra de Negócio com Limite de Retentativas
+        try {
             const { orderId, ticketTierId, quantity } = payload;
 
             console.log(`[DLX Worker] Processando possível expiração da ordem: ${orderId}`);
@@ -24,7 +41,7 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                 });
 
                 if (!order) {
-                    console.warn(`[DLX Worker] Ordem ${orderId} não encontrado no banco.`);
+                    console.warn(`[DLX Worker] Ordem ${orderId} não encontrada no banco.`);
                     return;
                 }
 
@@ -50,10 +67,20 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                 console.log(`[DLX Worker] Ordem ${orderId} marcada como EXPIRED. ${quantity} ingresso(s) devolvido(s) ao estoque!`);
             });
 
+            // Se o ritual teve sucesso, confirma e remove da fila
             channel.ack(msg);
         } catch (error) {
-            console.error('[DLX Worker] Erro ao processar reserva:', error);
-            channel.nack(msg, false, true);
+            console.error('[DLX Worker] Erro ao processar expiração da reserva:', error);
+
+            if (msg.fields.redelivered) {
+                // Já falhou anteriormente (limite de retentativas atingido) -> envia para a DLQ
+                console.warn(`[DLX Worker] Limite de tentativas excedido para a ordem ${payload.orderId}. Despachando para DLQ.`);
+                channel.nack(msg, false, false);
+            } else {
+                // Primeira falha transitória -> tenta mais uma vez
+                console.log(`[DLX Worker] Primeira falha para a ordem ${payload.orderId}. Re-enfileirando para nova tentativa...`);
+                channel.nack(msg, false, true);
+            }
         }
     });
 }
