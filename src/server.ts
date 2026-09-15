@@ -21,23 +21,41 @@ const paymentController = new PaymentController();
 const cancellationController = new CancellationController();
 
 app.get('/health', async (req, res) => {
+  const health = {
+    status: 'UP',
+    timeStamp: new Date().toISOString(),
+    services: {
+      database: 'DOWN',
+      redis: 'DOWN',
+      rabbitmq: 'DOWN',
+    },
+  };
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    const redisPing = await redis.ping();
-    const rabbitChannel = await rabbitMQ.getChannel();
-
-    return res.status(200).json({
-      status: 'ok',
-      database: 'connected',
-      redis: redisPing === 'PONG' ? 'connected' : 'unreachable',
-      rabbitmq: rabbitChannel ? 'connected' : 'unreachable',
-    });
-  } catch (error: any) {
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Service dependency failure',
-    });
+    health.services.database = 'UP';
+  } catch (error) {
+    health.services.database = 'DOWN';
   }
+
+  try {
+    const pong = await redis.ping()
+    health.services.redis = pong === 'PONG' ? 'UP' : 'DOWN';
+  } catch (error) {
+    health.services.redis = 'DOWN';
+  }
+
+  try {
+    health.services.rabbitmq = rabbitMQ.isConnected() ? 'UP' : 'DOWN';
+  } catch (error) {
+    health.services.rabbitmq = 'DOWN';
+  }
+
+  const isHealthy = Object.values(health.services).every((state) => state === 'UP');
+  health.status = isHealthy ? 'UP' : 'DOWN';
+
+  const statusCode = isHealthy ? 200 : 503;
+  return res.status(statusCode).json(health);
 });
 
 app.use('/auth', authRateLimiter, authRouter);
@@ -51,20 +69,71 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   return res.status(statusCode).json({ error: err.message || 'Internal server error.' });
 });
 
+let server: ReturnType<typeof app.listen>;
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`\n[Graceful Shutdown] ${signal} signal received. Starting graceful shutdown sequence...`);
+
+  const forceExitTimeout = setTimeout(() => {
+    console.error('[Graceful Shutdown] 10s timeout exceeded! Forcing process termination.');
+    process.exit(1);
+  }, 10000);
+  forceExitTimeout.unref();
+
+  try {
+    if (server && server.listening) {
+      await new Promise<void>((resolve) => {
+        server.close((err) => {
+          if (err && (err as any).code !== 'ERR_SERVER_NOT_RUNNING') {
+            console.warn('[Graceful Shutdown] Warning closing HTTP server:', err.message);
+          } else {
+            console.log('[Graceful Shutdown] HTTP server closed successfully.');
+          }
+          resolve();
+        });
+      });
+    } else {
+      console.log('[Graceful Shutdown] HTTP server was already closed or not listening.');
+    }
+
+    await rabbitMQ.close();
+    console.log('[Graceful Shutdown] RabbitMQ connection and channel closed.');
+
+    await redis.quit();
+    console.log('[Graceful Shutdown] Redis connection closed.');
+
+    await prisma.$disconnect();
+    console.log('[Graceful Shutdown] PostgreSQL (Prisma) connection disconnected.');
+
+    clearTimeout(forceExitTimeout);
+    console.log('[Graceful Shutdown] Graceful shutdown completed cleanly.');
+    process.exit(0);
+  } catch (error) {
+    console.error('[Graceful Shutdown] Error encountered during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 async function bootstrap() {
   try {
     await rabbitMQ.connect();
     await setupMessagingTopology();
     await startReservationExpirationConsumer();
 
-    app.listen(port, () => {
-      console.log(`Servidor HTTP rodando em: http://localhost:${port}`);
-      console.log(`Health Check disponível em: http://localhost:${port}/health`);
+    server = app.listen(port, () => {
+      console.log(`HTTP Server running on: http://localhost:${port}`);
+      console.log(`Health Check available on: http://localhost:${port}/health`);
     });
   } catch (error) {
-    console.error('Falha ao iniciar dependências do servidor:', error);
+    console.error('Failed to bootstrap server dependencies:', error);
     process.exit(1);
   }
 }
-
 bootstrap();
