@@ -10,7 +10,7 @@ class RabbitMQConnection {
   private connection: ChannelModel | null = null;
   private channel: Channel | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): RabbitMQConnection {
     if (!RabbitMQConnection.instance) {
@@ -54,9 +54,23 @@ class RabbitMQConnection {
     return this.channel;
   }
 
+  public isConnected(): boolean {
+    return Boolean(this.connection && this.channel);
+  }
+
   public async close(): Promise<void> {
-    if (this.channel) await this.channel.close();
-    if (this.connection) await this.connection.close();
+    try {
+      if (this.channel) {
+        await this.channel.close();
+        this.channel = null;
+      }
+      if (this.connection) {
+        await this.connection.close();
+        this.connection = null;
+      }
+    } catch (error) {
+      console.error('[RabbitMQ] Error closing connection during shutdown:', error);
+    }
   }
 }
 
