@@ -24,22 +24,21 @@ export class PaymentController {
             }
 
             if (!orderId || typeof orderId !== 'string') {
-                return res.status(400).json({ error: 'O ID do pedido é obrigatório.' });
+                return res.status(400).json({ error: 'Order ID is required.' });
             }
-
 
             const result = await this.paymentService.execute({ orderId, userId, idempotencyKey });
             
             return res.status(200).json({
-                message: 'Pagamento confirmado com sucesso!',
+                message: 'Payment confirmed successfully.',
                 order: result.order,
             });
             } catch (error: any) {
                 const statusCode = typeof error.statusCode === 'number' ? error.statusCode : 400;
-                const message = error?.message || 'Erro ao processar pagamento.';
+                const message = error?.message || 'Error processing payment.';
                 if (statusCode === 500) {
-                    console.error('Erro interno ao processar pagamento:', error);
-                    return res.status(500).json({ error: 'Erro interno ao processar o pagamento.' });
+                    console.error('[Payment] Internal error processing payment:', error);
+                    return res.status(500).json({ error: 'Internal error processing payment.' });
                 }
                 return res.status(statusCode).json({ error: message });
             }

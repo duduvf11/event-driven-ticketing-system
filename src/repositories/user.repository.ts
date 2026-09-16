@@ -1,7 +1,7 @@
 import { prisma } from '../config/database'
 import { User } from '@prisma/client'
 
-export interface CreteUserData {
+export interface CreateUserData {
     name: string;
     email: string;
     passwordHash: string;
@@ -20,7 +20,7 @@ export class UserRepository {
         });
     }
 
-    async create(data: CreteUserData): Promise<User> {
+    async create(data: CreateUserData): Promise<User> {
         return prisma.user.create({
             data,
         });

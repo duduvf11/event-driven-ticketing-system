@@ -41,5 +41,5 @@ export async function setupMessagingTopology(): Promise<void> {
         ROUTING_KEYS.EXPIRATION_DELAY
     );
 
-    console.log(`Topologia do RabbitMQ configurada (TTL: ${RABBITMQ_CONFIG.reservationTtlMs}ms).`)
+    console.log(`[RabbitMQ] Messaging topology successfully declared (TTL: ${RABBITMQ_CONFIG.reservationTtlMs}ms).`);
 }

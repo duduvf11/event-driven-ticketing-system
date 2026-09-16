@@ -18,9 +18,9 @@ export async function publishReservationExpiration(
         }
     );
 
-    if(!published) {
-        console.warn(`[RabbitMQ] Buffer de escrita cheio ao agendar expiração da ordem: ${payload.orderId}`);
+    if (!published) {
+        console.warn(`[RabbitMQ] Write buffer full while scheduling expiration for order: ${payload.orderId}`);
     } else {
-        console.log(`[RabbitMQ] Expiração agendada com sucesso para a ordem: ${payload.orderId}`);
+        console.log(`[RabbitMQ] Expiration successfully scheduled for order: ${payload.orderId}`);
     }
 }

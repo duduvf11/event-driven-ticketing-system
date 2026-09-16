@@ -12,13 +12,13 @@ export const redis = new Redis(redisUrl, {
 });
 
 redis.on('connect', () => {
-    console.log("Conexão com Redis estabelecida com sucesso via URL:", redisUrl);
+    console.log('[Redis] Connected successfully via URL:', redisUrl);
 });
 
 redis.on('ready', () => {
-  console.log('Redis pronto para receber comandos.');
+    console.log('[Redis] Ready to accept commands.');
 });
 
-redis.on('error', (err) =>{
-    console.error('Erro na conexão com Redis:', err.message)
+redis.on('error', (err) => {
+    console.error('[Redis] Connection error:', err.message);
 });

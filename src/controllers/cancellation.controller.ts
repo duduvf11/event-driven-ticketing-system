@@ -38,7 +38,7 @@ export class CancellationController {
       const message = error.message || 'Internal server error while processing cancellation.';
 
       if (statusCode === 500) {
-        console.error('Cancellation error:', error);
+        console.error('[Cancellation] Error processing cancellation:', error);
       }
 
       return res.status(statusCode).json({ error: message });

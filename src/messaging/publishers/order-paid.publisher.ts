@@ -16,8 +16,8 @@ export async function publishOrderPaid(payload: OrderPaidPayLoad): Promise<void>
     );
 
     if (!published) {
-        console.warn(`[RabbitMQ] Buffer cheio ao publicar orders.paid para ordem: ${payload.orderId}`);
+        console.warn(`[RabbitMQ] Write buffer full while publishing orders.paid for order: ${payload.orderId}`);
     } else {
-        console.log(`[RabbitMQ] Evento orders.paid publicado com sucesso para ordem: ${payload.orderId}`);
+        console.log(`[RabbitMQ] orders.paid event successfully published for order: ${payload.orderId}`);
     }
 }
