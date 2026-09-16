@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
+import cors, { CorsOptions } from 'cors';
 import { redis } from './config/redis';
 import { prisma } from './config/database';
 import { rabbitMQ } from './config/rabbitmq';
@@ -13,6 +15,28 @@ import { authMiddleware } from './middlewares/auth.middleware';
 import { authRateLimiter, reservationRateLimiter } from './middlewares/rate-limiter.middleware';
 
 const app = express();
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if(!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy: Origin not allowed.'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-idempotency-key'],
+  credentials: true,
+  maxAge: 86400,
+};
+
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(cors(corsOptions));
+
 const port = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
