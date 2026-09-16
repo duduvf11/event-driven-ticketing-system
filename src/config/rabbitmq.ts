@@ -28,21 +28,21 @@ class RabbitMQConnection {
       this.connection = await amqp.connect(RABBITMQ_CONFIG.url);
       this.channel = await this.connection.createChannel();
 
-      console.log('Conectado ao RabbitMQ com sucesso!');
+      console.log('[RabbitMQ] Connected successfully to RabbitMQ broker.');
 
       this.connection.on('error', (err) => {
-        console.error('Erro na conexão com RabbitMQ:', err);
+        console.error('[RabbitMQ] Connection error:', err);
       });
 
       this.connection.on('close', () => {
-        console.warn('Conexão com RabbitMQ encerrada.');
+        console.warn('[RabbitMQ] Connection closed.');
         this.channel = null;
         this.connection = null;
       });
 
       return this.channel;
     } catch (error) {
-      console.error('Falha ao conectar ao RabbitMQ.', error);
+      console.error('[RabbitMQ] Failed to connect to RabbitMQ broker:', error);
       throw error;
     }
   }

@@ -25,7 +25,7 @@ const TARGET_TIER_ID = __ENV.TIER_ID
 
 export default function () {
     if (!TARGET_TIER_ID) {
-        throw new Error('TIER_ID não foi definido! Passe via: -e TIER_ID="<uuid>"');
+        throw new Error('TIER_ID was not defined! Pass via: -e TIER_ID="<uuid>"');
     }
 
     const uniqueUserId = `user-vu-${__VU}-${Date.now()}`;
@@ -50,15 +50,15 @@ export default function () {
     if (res.status === 201) {
         successfulReservations.add(1);
         check(res, {
-            'status é 201': (r) => r.status === 201,
+            'status is 201': (r) => r.status === 201,
         });
     } else if (res.status === 400 || res.status === 409) {
         rejectedReservations.add(1);
         check(res, {
-            'status de esgotado/conflito': (r) => r.status === 400 || r.status === 409,
+            'status is sold-out/conflict': (r) => r.status === 400 || r.status === 409,
         });
     } else {
-        otherErrors.add(1)
-        console.error(`Status inesperado [${res.status}]: ${res.body}`);
+        otherErrors.add(1);
+        console.error(`Unexpected status [${res.status}]: ${res.body}`);
     }
 }

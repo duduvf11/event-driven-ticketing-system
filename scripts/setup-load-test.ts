@@ -2,7 +2,7 @@ import { prisma } from '../src/config/database';
 import { redis } from '../src/config/redis';
 
 async function main() {
-  // 1. Conecta e busca o primeiro registro de TicketTier existente (ou cria se vazio)
+  // 1. Connect and find the first existing TicketTier (or create one if empty)
   let tier = await prisma.ticketTier.findFirst({
     orderBy: { createdAt: 'asc' },
   });
@@ -10,9 +10,9 @@ async function main() {
   if (!tier) {
     const event = await prisma.event.create({
       data: {
-        title: 'Evento de Teste de Carga',
-        description: 'Evento temporário criado para o teste de concorrência com k6',
-        location: 'Arena Virtual de Carga',
+        title: 'Load Test Event',
+        description: 'Temporary event created for k6 concurrency test',
+        location: 'Virtual Load Arena',
         eventDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
@@ -20,7 +20,7 @@ async function main() {
     tier = await prisma.ticketTier.create({
       data: {
         eventId: event.id,
-        name: 'Lote Teste de Concorrência',
+        name: 'Concurrency Test Tier',
         price: 50.0,
         totalQty: 10,
         reservedQty: 0,
@@ -28,7 +28,7 @@ async function main() {
       },
     });
   } else {
-    // Limpar pedidos anteriores associados a este tier para garantir auditoria 100% limpa
+    // Clean up previous orders associated with this tier to ensure clean test state
     const orderItems = await prisma.orderItem.findMany({
       where: { ticketTierId: tier.id },
       select: { orderId: true },
@@ -44,7 +44,7 @@ async function main() {
       });
     }
 
-    // 2. Resete e trave esse tier para um estado estrito de teste
+    // 2. Reset this tier to strict baseline test state
     tier = await prisma.ticketTier.update({
       where: { id: tier.id },
       data: {
@@ -55,7 +55,7 @@ async function main() {
     });
   }
 
-  // Limpar qualquer lock residual no Redis para esse tier
+  // Clear any residual lock in Redis for this tier
   await redis.del(`lock:ticket_tier:${tier.id}`);
 
   console.log(`TIER_ID: ${tier.id}`);
@@ -67,7 +67,7 @@ async function main() {
 
 main()
   .catch((err) => {
-    console.error('Erro na preparação do banco:', err);
+    console.error('[Setup] Error preparing database for load test:', err);
     process.exit(1);
   })
   .finally(async () => {

@@ -7,7 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// 1. Usuários do Sistema
+// 1. System Users
 model User {
   id            String    @id @default(uuid())
   name          String
@@ -21,7 +21,7 @@ model User {
   @@map("users")
 }
 
-// 2. Eventos (Shows, Conferências, Torneios)
+// 2. Events (Concerts, Conferences, Tournaments)
 model Event {
   id          String   @id @default(uuid())
   title       String
@@ -36,7 +36,7 @@ model Event {
   @@map("events")
 }
 
-// 3. Lotes / Categorias de Ingressos (VIP, Pista, Camarote)
+// 3. Ticket Tiers / Categories (VIP, General Admission, Box)
 model TicketTier {
   id          String   @id @default(uuid())
   eventId     String   @map("event_id")
@@ -54,7 +54,7 @@ model TicketTier {
   @@map("ticket_tiers")
 }
 
-// 4. Status do Pedido
+// 4. Order Status
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -62,7 +62,7 @@ enum OrderStatus {
   EXPIRED
 }
 
-// 5. Pedidos de Compra
+// 5. Purchase Orders
 model Order {
   id             String      @id @default(uuid())
   userId         String      @map("user_id")
@@ -79,7 +79,7 @@ model Order {
   @@map("orders")
 }
 
-// 6. Itens do Pedido (Relação Pedido x Lote)
+// 6. Order Items (Order x Ticket Tier Relation)
 model OrderItem {
   id           String   @id @default(uuid())
   orderId      String   @map("order_id")

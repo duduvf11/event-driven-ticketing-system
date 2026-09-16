@@ -3,24 +3,24 @@ import { redis } from '../config/redis';
 
 export class DistributedLock {
     /** 
-     * Tenta adquirir um lock distribuído no Redis. 
-     * @param key Chave indentificadora do recurso (ex: lock:ticket_tier:UUID)
-     * @param ttlMs Tempo de vida do Lock em milissegundos (default: 5000ms)
-     * @returns O token indentificador em caso de sucesso, ou null se já estiver ocupado.
+     * Attempts to acquire a distributed lock in Redis.
+     * @param key Unique identifying key for the resource (e.g., lock:ticket_tier:UUID)
+     * @param ttlMs Lock time-to-live in milliseconds (default: 5000ms)
+     * @returns The lock token on success, or null if the resource is currently locked.
      */
     static async acquire(key: string, ttlMs: number = 5000): Promise<string | null> {
-        const lockToken = randomUUID()
+        const lockToken = randomUUID();
 
-        // 'PX': expiração em ms | 'NX' só seta se não existir
+        // 'PX': TTL expiration in ms | 'NX': set only if key does not exist
         const result = await redis.set(key, lockToken, 'PX', ttlMs, 'NX');
         return result === 'OK' ? lockToken : null;
     }
 
     /**
-     * Libera o lock de forma atômica via script Lua apenas se o token corresponder.
-     * @param key Chave identificadora do recurso
-     * @param lockToken Token retornado no momento do acquire
-     * @returns boolean indicando se o lock foi liberado com sucesso
+     * Atomically releases the distributed lock via Lua script only if the token matches.
+     * @param key Unique identifying key for the resource
+     * @param lockToken Token returned upon acquisition
+     * @returns boolean indicating whether the lock was successfully released
      */
     static async release(key: string, lockToken: string): Promise<boolean> {
         const luaScript = `

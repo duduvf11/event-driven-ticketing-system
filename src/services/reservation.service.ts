@@ -24,7 +24,7 @@ export class ReservationService {
   async execute(input: ReservedTicketInput) {
     const { userId, ticketTierId, quantity, idempotencyKey } = input;
 
-    // 1. Idempotência: Se já processou esta chave, retorna o pedido existente
+    // 1. Idempotency: If this key has already been processed, return the existing order
     if (idempotencyKey) {
       const existingOrder = await this.orderRepo.findByIdempotencyKey(idempotencyKey);
       if (existingOrder) {
@@ -37,7 +37,7 @@ export class ReservationService {
     const retryDelayMs = 80;
     let lockToken: string | null = null;
 
-    // 2. Tenta adquirir o Lock no Redis com retentativas (Backoff)
+    // 2. Attempt to acquire Redis distributed lock with retry backoff
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       lockToken = await DistributedLock.acquire(lockKey, 5000);
       if (lockToken) break;
@@ -46,24 +46,24 @@ export class ReservationService {
     }
 
     if (!lockToken) {
-      throw new Error('Serviço ocupado no momento devido à alta demanda. Tente novamente em instantes.');
+      throw new Error('Service temporarily busy due to high demand. Please try again shortly.');
     }
 
     let createdOrder;
 
     try {
-      // 3. Transação ACID atômica no PostgreSQL protegida pelo lock
+      // 3. PostgreSQL atomic ACID transaction guarded by the distributed lock
       createdOrder = await prisma.$transaction(async (tx) => {
         const tier = await this.ticketRepo.findById(ticketTierId, tx);
 
         if (!tier) {
-          throw new Error('Lote de ingressos não encontrado.');
+          throw new Error('Ticket tier not found.');
         }
 
         const availableQty = Number(tier.totalQty) - (Number(tier.reservedQty) + Number(tier.soldQty));
 
         if (availableQty < quantity) {
-          throw new Error(`Estoque insuficiente. Quantidade disponível: ${availableQty}`);
+          throw new Error(`Insufficient stock. Available quantity: ${availableQty}`);
         }
 
         await this.ticketRepo.incrementReservedQuantity(ticketTierId, quantity, tx);
@@ -90,7 +90,7 @@ export class ReservationService {
       await DistributedLock.release(lockKey, lockToken);
     }
 
-    // 4. Publica o evento de expiração com o lock já liberado e a transação confirmada
+    // 4. Publish expiration event after releasing the lock and committing transaction
     await publishReservationExpiration({
       orderId: createdOrder.id,
       ticketTierId: ticketTierId,

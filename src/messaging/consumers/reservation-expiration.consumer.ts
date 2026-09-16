@@ -7,33 +7,33 @@ export async function startReservationExpirationConsumer(): Promise<void> {
 
     await channel.prefetch(1);
 
-    console.log(`Worker escutando mensagens na fila: [${QUEUES.RESERVATION_EXPIRATION}]`);
+    console.log(`[Worker] Listening for messages on queue: [${QUEUES.RESERVATION_EXPIRATION}]`);
 
     await channel.consume(QUEUES.RESERVATION_EXPIRATION, async (msg) => {
         if (!msg) return;
 
         let payload: ReservationExpirationPayLoad;
 
-        // 1. Barreira contra Poison Pills (JSON corrompido ou payload incompleto)
+        // 1. Barrier against Poison Pills (malformed JSON or incomplete payload)
         try {
             payload = JSON.parse(msg.content.toString());
 
             if (!payload?.orderId || !payload?.ticketTierId || typeof payload?.quantity !== 'number') {
-                console.error('[DLX Worker] Poison Pill detectada (payload incompleto). Enviando para DLQ:', msg.content.toString());
+                console.error('[DLX Worker] Poison Pill detected (incomplete payload). Routing to DLQ:', msg.content.toString());
                 channel.nack(msg, false, false);
                 return;
             }
         } catch (parseError) {
-            console.error('[DLX Worker] Poison Pill detectada (JSON corrompido). Enviando para DLQ:', parseError);
+            console.error('[DLX Worker] Poison Pill detected (malformed JSON). Routing to DLQ:', parseError);
             channel.nack(msg, false, false);
             return;
         }
 
-        // 2. Processamento da Regra de Negócio com Limite de Retentativas
+        // 2. Business logic processing with retry limits
         try {
             const { orderId, ticketTierId, quantity } = payload;
 
-            console.log(`[DLX Worker] Processando possível expiração da ordem: ${orderId}`);
+            console.log(`[DLX Worker] Processing potential expiration for order: ${orderId}`);
 
             await prisma.$transaction(async (tx) => {
                 const order = await tx.order.findUnique({
@@ -41,12 +41,12 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                 });
 
                 if (!order) {
-                    console.warn(`[DLX Worker] Ordem ${orderId} não encontrada no banco.`);
+                    console.warn(`[DLX Worker] Order ${orderId} not found in database.`);
                     return;
                 }
 
                 if (order.status !== 'PENDING') {
-                    console.log(`[DLX Worker] Ordem ${orderId} já está como [${order.status}]. Nenhuma ação de estorno necessária.`);
+                    console.log(`[DLX Worker] Order ${orderId} is already [${order.status}]. No rollback required.`);
                     return;
                 }
 
@@ -64,21 +64,21 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                     },
                 });
 
-                console.log(`[DLX Worker] Ordem ${orderId} marcada como EXPIRED. ${quantity} ingresso(s) devolvido(s) ao estoque!`);
+                console.log(`[DLX Worker] Order ${orderId} marked as EXPIRED. ${quantity} ticket(s) released back to inventory.`);
             });
 
-            // Se o ritual teve sucesso, confirma e remove da fila
+            // Acknowledge and remove from queue upon successful processing
             channel.ack(msg);
         } catch (error) {
-            console.error('[DLX Worker] Erro ao processar expiração da reserva:', error);
+            console.error('[DLX Worker] Error processing reservation expiration:', error);
 
             if (msg.fields.redelivered) {
-                // Já falhou anteriormente (limite de retentativas atingido) -> envia para a DLQ
-                console.warn(`[DLX Worker] Limite de tentativas excedido para a ordem ${payload.orderId}. Despachando para DLQ.`);
+                // Previously failed (retry limit reached) -> dispatch to DLQ
+                console.warn(`[DLX Worker] Retry limit exceeded for order ${payload.orderId}. Dispatching to DLQ.`);
                 channel.nack(msg, false, false);
             } else {
-                // Primeira falha transitória -> tenta mais uma vez
-                console.log(`[DLX Worker] Primeira falha para a ordem ${payload.orderId}. Re-enfileirando para nova tentativa...`);
+                // Transient failure on initial delivery -> re-queue for single retry
+                console.log(`[DLX Worker] First transient failure for order ${payload.orderId}. Re-queuing for retry...`);
                 channel.nack(msg, false, true);
             }
         }

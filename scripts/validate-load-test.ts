@@ -8,7 +8,7 @@ async function main() {
     : await prisma.ticketTier.findFirst({ orderBy: { createdAt: 'asc' } });
 
   if (!tier) {
-    console.error('TicketTier não encontrado!');
+    console.error('[Audit] TicketTier not found.');
     process.exit(1);
   }
 
@@ -25,26 +25,26 @@ async function main() {
   const isOverselling = tier.reservedQty + tier.soldQty > tier.totalQty;
 
   console.log('='.repeat(60));
-  console.log(' AUDITORIA PÓS-TESTE NO BANCO DE DADOS (POSTGRESQL)');
+  console.log(' POST-TEST DATABASE AUDIT (POSTGRESQL)');
   console.log('='.repeat(60));
   console.log(`Tier ID:            ${tier.id}`);
-  console.log(`Tier Nome:          ${tier.name}`);
+  console.log(`Tier Name:          ${tier.name}`);
   console.log(`Total Qty:          ${tier.totalQty}`);
   console.log(`Reserved Qty:       ${tier.reservedQty}`);
   console.log(`Sold Qty:           ${tier.soldQty}`);
-  console.log(`Ordens PENDING:     ${pendingOrders.length}`);
-  console.log(`Ordens CONFIRMED:   ${confirmedOrders.length}`);
-  console.log(`Ordens CANCELLED:   ${cancelledOrders.length}`);
-  console.log(`Ordens EXPIRED:     ${expiredOrders.length}`);
-  console.log(`Total de Ordens:    ${orderItems.length}`);
-  console.log(`Houve Overselling?  ${isOverselling ? 'SIM (FALHA GRAVE)' : 'NÃO (SUCESSO)'}`);
-  console.log(`Integridade:        ${tier.reservedQty === 10 && !isOverselling ? '100% ÍNTEGRA' : 'DIVERGENTE'}`);
+  console.log(`PENDING Orders:     ${pendingOrders.length}`);
+  console.log(`CONFIRMED Orders:   ${confirmedOrders.length}`);
+  console.log(`CANCELLED Orders:   ${cancelledOrders.length}`);
+  console.log(`EXPIRED Orders:     ${expiredOrders.length}`);
+  console.log(`Total Orders:       ${orderItems.length}`);
+  console.log(`Overselling Occurred? ${isOverselling ? 'YES (CRITICAL FAILURE)' : 'NO (SUCCESS)'}`);
+  console.log(`Integrity Check:    ${tier.reservedQty === 10 && !isOverselling ? '100% INTACT' : 'DIVERGENT'}`);
   console.log('='.repeat(60));
 }
 
 main()
   .catch((err) => {
-    console.error('Erro na validação pós-teste:', err);
+    console.error('[Audit] Error during post-test validation:', err);
     process.exit(1);
   })
   .finally(async () => {

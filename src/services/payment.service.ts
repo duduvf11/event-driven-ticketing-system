@@ -35,13 +35,13 @@ export class PaymentService {
                 const order = await this.orderRepo.findByIdWithItems(orderId, tx);
 
                 if (!order) {
-                    const error: any = new Error('Pedido não encontrado.');
+                    const error: any = new Error('Order not found.');
                     error.statusCode = 404;
                     throw error;
                 }
 
                 if (order.userId !== userId) {
-                    const error: any = new Error('Acesso negado. Este pedido não pertence a você.');
+                    const error: any = new Error('Access denied. This order does not belong to you.');
                     error.statusCode = 403;
                     throw error;
                 }
