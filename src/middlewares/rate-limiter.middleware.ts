@@ -7,6 +7,7 @@ export const authRateLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.DISABLE_RATE_LIMIT === 'true',
     store: new RedisStore({
         // @ts-expect-error
         sendCommand: (...args: string[]) => redis.call(...args),
@@ -22,6 +23,7 @@ export const reservationRateLimiter = rateLimit({
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.DISABLE_RATE_LIMIT === 'true',
     store: new RedisStore({
         // @ts-expect-error
         sendCommand: (...args: string[]) => redis.call(...args),

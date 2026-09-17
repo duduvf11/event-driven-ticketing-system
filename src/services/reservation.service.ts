@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import { redis } from '../config/redis';
 import { TicketRepository } from '../repositories/ticket.repository';
 import { OrderRepository } from '../repositories/order.repository';
 import { DistributedLock } from '../utils/distributed-lock';
@@ -32,12 +33,18 @@ export class ReservationService {
       }
     }
 
+    // 2. Fast-fail pre-check: If Redis inventory cache indicates sold-out, fail fast without lock contention
+    const cachedStock = await redis.get(`ticket_tier:${ticketTierId}:available`);
+    if (cachedStock !== null && Number(cachedStock) < quantity) {
+      throw new Error(`Insufficient stock. Available quantity: ${cachedStock}`);
+    }
+
     const lockKey = `lock:ticket_tier:${ticketTierId}`;
     const maxRetries = 15;
     const retryDelayMs = 80;
     let lockToken: string | null = null;
 
-    // 2. Attempt to acquire Redis distributed lock with retry backoff
+    // 3. Attempt to acquire Redis distributed lock with retry backoff
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       lockToken = await DistributedLock.acquire(lockKey, 5000);
       if (lockToken) break;
@@ -90,7 +97,10 @@ export class ReservationService {
       await DistributedLock.release(lockKey, lockToken);
     }
 
-    // 4. Publish expiration event after releasing the lock and committing transaction
+    // 4. Decrement Redis availability counter to maintain real-time parity with PostgreSQL
+    await redis.decrby(`ticket_tier:${ticketTierId}:available`, quantity);
+
+    // 5. Publish expiration event after releasing the lock and committing transaction
     await publishReservationExpiration({
       orderId: createdOrder.id,
       ticketTierId: ticketTierId,

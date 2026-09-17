@@ -1,5 +1,6 @@
 import { rabbitMQ } from "../../config/rabbitmq";
 import { prisma } from "../../config/database";
+import { redis } from "../../config/redis";
 import { QUEUES, ReservationExpirationPayLoad } from "../constants";
 
 export async function startReservationExpirationConsumer(): Promise<void> {
@@ -35,6 +36,8 @@ export async function startReservationExpirationConsumer(): Promise<void> {
 
             console.log(`[DLX Worker] Processing potential expiration for order: ${orderId}`);
 
+            let wasExpired = false;
+
             await prisma.$transaction(async (tx) => {
                 const order = await tx.order.findUnique({
                     where: { id: orderId },
@@ -64,8 +67,13 @@ export async function startReservationExpirationConsumer(): Promise<void> {
                     },
                 });
 
+                wasExpired = true;
                 console.log(`[DLX Worker] Order ${orderId} marked as EXPIRED. ${quantity} ticket(s) released back to inventory.`);
             });
+
+            if (wasExpired) {
+                await redis.incrby(`ticket_tier:${ticketTierId}:available`, quantity);
+            }
 
             // Acknowledge and remove from queue upon successful processing
             channel.ack(msg);
