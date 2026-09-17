@@ -18,3 +18,4 @@ yarn-error.log*
 *.swp
 *.swo
 scratch/
+tests/load/test-data.json
